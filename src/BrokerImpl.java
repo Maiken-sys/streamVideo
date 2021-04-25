@@ -2,7 +2,29 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-public class BrokerImpl extends Thread implements Broker {
+public class BrokerImpl implements Broker {
+
+
+    public static void main(String [] Args){
+        ServerSocket broker = null;
+
+        try{
+            broker = new ServerSocket(32000, 10);
+            broker.setReuseAddress(true);
+            while(true){
+                Socket appNode = broker.accept();
+                System.out.println("The next line after broker.accept(); just executed.");
+                System.out.println("New appNode connected" + appNode.getInetAddress().getHostAddress());
+
+
+                ActionsForClients clientSock = new ActionsForClients(appNode);
+                new Thread(clientSock).start();
+            }
+
+        } catch (IOException e){
+            e.printStackTrace();
+        }
+    }
 
 
 
