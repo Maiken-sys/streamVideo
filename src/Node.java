@@ -7,5 +7,5 @@ public interface Node {
     public void connect();
     public void disconnect();
     public void updateNodes();
-
+    public List<Broker> getBrokers();
 }

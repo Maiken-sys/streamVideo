@@ -6,6 +6,10 @@ public interface Broker extends Node {
     List<Consumer> registeredUsers = null;
     List<Publisher> registeredPublishers = null;
 
+
+
+
+
     public void calculateKeys();
     public Publisher acceptConnection(Publisher publisher);
     public Consumer acceptConnection(Consumer consumer);
@@ -13,6 +17,7 @@ public interface Broker extends Node {
     public void notifyBrokersOnChanges();
     public void pull(String s);
     public void filterConsumers(String s);
+
 
 
 }
