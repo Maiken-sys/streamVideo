@@ -1,13 +1,11 @@
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.List;
 public interface Broker extends Node {
-    List<Consumer> registeredUsers = null;
-    List<Publisher> registeredPublishers = null;
-
-
-
+    List<ConsumerImpl> registeredUsers = new ArrayList<ConsumerImpl>();
+    List<PublisherImpl> registeredPublishers = new ArrayList<PublisherImpl>();
 
 
     public void calculateKeys();
@@ -17,7 +15,6 @@ public interface Broker extends Node {
     public void notifyBrokersOnChanges();
     public void pull(String s);
     public void filterConsumers(String s);
-
-
+    public String getRequest();
 
 }
