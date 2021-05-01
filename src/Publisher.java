@@ -150,6 +150,23 @@ public class Publisher implements AppNodeImpl {
 
 
 
+
+
+    public void addVideo(Value value){
+        VideoFile videoFile = value.getVideoFile();
+
+
+    }
+
+
+
+
+
+
+
+
+
+
     //*******************************************************************************
     //Consumer-Only methods**********************************************************
     //*******************************************************************************

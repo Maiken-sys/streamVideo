@@ -19,7 +19,7 @@ public class Broker implements BrokerImpl{
 
     public static void main(String[] args){
 
-        Broker broker = new Broker(4321);
+        Broker broker = new Broker("127.0.0.1", 4321);
         broker.update_broker_map();
         broker.connect();
     }
@@ -47,7 +47,8 @@ public class Broker implements BrokerImpl{
     }
 
 
-    Broker(int port){
+    Broker(String ip, int port){
+        this.ip = ip;
         this.port = port;
     }
 
@@ -70,7 +71,11 @@ public class Broker implements BrokerImpl{
 
     @Override
     public List<Broker> getBrokers() {
-        return null;
+        List<Broker> brokerList = new ArrayList<>();
+        for(int p : brokers.keySet()){
+            brokerList.add(new Broker(brokers.get(p), p));
+        }
+        return brokerList;
     }
 
     @Override
@@ -144,8 +149,4 @@ public class Broker implements BrokerImpl{
     public void filterConsumers(String s) {
 
     }
-
-
-
-
 }

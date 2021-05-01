@@ -1,8 +1,12 @@
 public class Value {
 
-    VideoFile videoFile;
+    private VideoFile videoFile;
 
     public Value(VideoFile videoFile){
         this.videoFile = videoFile;
+    }
+
+    public VideoFile getVideoFile(){
+        return videoFile;
     }
 }
