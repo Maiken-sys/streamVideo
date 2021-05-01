@@ -77,6 +77,7 @@ public class Publisher implements AppNodeImpl {
     public Broker hashTopic(String s) {
         // take the md5 hex hash of hashtag
         // take md5 hex hash of brokers' ip + port
+        // create a bigint from the hash code
         // do hashtag_hash % highest broker_hash
         // return first broker with value higher than hashtag_hash
         BigInteger hash_value = md5(s);
@@ -112,7 +113,7 @@ public class Publisher implements AppNodeImpl {
         return null;
     }
 
-    public static String bytesToHex(byte[] bytes) {
+    private String bytesToHex(byte[] bytes) {
         final char[] hexArray = "0123456789ABCDEF".toCharArray();
         char[] hexChars = new char[bytes.length * 2];
         for (int j = 0; j < bytes.length; j++) {
