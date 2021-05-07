@@ -13,7 +13,7 @@ public class AppNode extends Thread implements Node, AppNodeImpl{
 
 
     public static void main(String [] Args){
-        System.out.println("mmmnai");
+        System.out.println("mmmnaiasdasda");
     }
 
 
