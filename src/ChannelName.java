@@ -14,9 +14,6 @@ public class ChannelName {
         userVideoFilesMap = new HashMap<>();
     }
 
-    public void addHashtag(String s){
-        hashtagsPublished.add(s);
-    }
 
     public String getChannelName(){
         return channelName;
@@ -26,7 +23,8 @@ public class ChannelName {
         return hashtagsPublished;
     }
 
-    public void removeHashtag(String s){
-        hashtagsPublished.remove(s);
+    public HashMap<String, ArrayList<Value>> getUserVideoFilesMap() {
+        return this.userVideoFilesMap;
     }
+
 }

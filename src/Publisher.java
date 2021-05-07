@@ -10,15 +10,26 @@ import java.util.List;
 import java.security.MessageDigest;
 import java.util.Scanner;
 
-public class Publisher implements AppNodeImpl {
+public class Publisher extends Thread implements AppNodeImpl {
+    private ChannelName channel;
     private int port;
-    public Socket pubSocket;        //it is the socket that client uses to communicate with server
+    private String ip;
+    private Socket pubSocket;        //it is the socket that client uses to communicate with server
     ObjectOutputStream out = null;
     ObjectInputStream in = null;
 
     public Publisher(int port){
         this.port = port;
     }
+
+    public static void main(String [] args) throws IOException {
+
+        Publisher pub = new Publisher(4321);
+        pub.connect();
+        pub.addVideo("viral", pub.channel);
+    }
+
+
 
 
     //*******************************************************************************
@@ -42,12 +53,20 @@ public class Publisher implements AppNodeImpl {
             System.err.println("Προσπαθείς να συνδεθεις σε άγνωστο host!!");
         } catch (IOException ioException) {
             ioException.printStackTrace();
+        }finally {
+           this.disconnect();
         }
     }
 
     @Override
     public void disconnect() {
-
+        try {
+            this.in.close();
+            this.out.close();
+            this.pubSocket.close();
+        }catch (IOException e){
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -60,13 +79,14 @@ public class Publisher implements AppNodeImpl {
     //Publisher-Only methods**********************************************************
     //*******************************************************************************
     @Override
-    public void addHashTag(String s) {
-
+    public void addHashTag(String s){
+        this.channel.getHashtagsPublished().add(s);
+        this.notifyBrokersForHashTags(s);
     }
 
     @Override
     public void removeHashTag(String s) {
-
+        this.channel.getHashtagsPublished().remove(s);
     }
 
     @Override
@@ -76,29 +96,31 @@ public class Publisher implements AppNodeImpl {
 
     @Override
     public Broker hashTopic(String s) {
-        List<Broker> brokers = getBrokerList();
-        for (Broker br : brokers) {
-            System.out.println(2);
-        }
-
-        byte[] msg = s.getBytes(StandardCharsets.UTF_8);
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            md.digest(msg);
-            byte[] hvalues = md.digest(msg);
-            byte[] bvalues = md.digest(msg);
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
-
-
         return null;
     }
 
-    @Override
-    public void push(String s, Value v) {
+   @Override
+    public void push(String s, Value v) {}
+/*         try {
+            //this.out = new ObjectOutputStream();
+        } catch (IOException ex) {
+            System.out.println("File not found. ");
+            ex.printStackTrace();
+        }
 
-    }
+        byte[] bytes = new byte[16*1024];
+
+        try{
+            int count = 0;
+            while((count = in.read(bytes)) > 0){
+                out.write(bytes, 0, count);
+                System.out.println("push method");
+            }
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+
+    } */
 
     @Override
     public void notifyFailure(Broker broker) {
@@ -107,16 +129,44 @@ public class Publisher implements AppNodeImpl {
 
     @Override
     public void notifyBrokersForHashTags(String s) {
+        try{
+            this.out.writeObject(s);
+            this.out.writeObject(this.channel);
+        }catch (IOException e){
+            System.out.println("Hashtag not given");
+        }
 
     }
+
+    public byte[]  addVideo(String hashtag, ChannelName channel) throws IOException {
+        File file = new File("/home/mnanos/Videos/testVid.mp4");
+        FileInputStream fileInputStream = new FileInputStream(file);
+        byte[] bFile = new byte[(int) file.length()];
+
+        try{
+            fileInputStream.read(bFile);
+            fileInputStream.close();
+            for (int i = 0; i < bFile.length; i++)
+            {
+                System.out.print((char) bFile[i]);
+            }
+
+        }catch(IOException e){
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+
+
+    @Override
+    public ArrayList<Value> generateChunks(VideoFile video) {
+        return null;
+    }
+
 
     public int getPort() {
         return this.port;
-    }
-
-    @Override
-    public ArrayList<Value> generateChunks(String s) {
-        return null;
     }
 
 

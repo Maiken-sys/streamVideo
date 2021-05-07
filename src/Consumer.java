@@ -40,6 +40,8 @@ public class Consumer implements AppNodeImpl {
             System.err.println("Προσπαθεις να συνδεθεις σε άγνωστο host!!");
         } catch (IOException ioException) {
             ioException.printStackTrace();
+        }finally {
+            this.disconnect();
         }
     }
 
@@ -113,7 +115,7 @@ public class Consumer implements AppNodeImpl {
     }
 
     @Override
-    public ArrayList<Value> generateChunks(String s) {
+    public ArrayList<Value> generateChunks(VideoFile video) {
         return null;
     }
 

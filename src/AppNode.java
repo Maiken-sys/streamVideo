@@ -85,7 +85,7 @@ public class AppNode extends Thread implements Node, AppNodeImpl{
     }
 
     @Override
-    public ArrayList<Value> generateChunks(String s) {
+    public ArrayList<Value> generateChunks(VideoFile video) {
         return null;
     }
 

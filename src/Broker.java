@@ -5,21 +5,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Broker implements BrokerImpl {
-    public int port;                      //port of each broker
-    public ServerSocket serverSocket;    //the server socket for each broker (the socket that is used for accepting
+    private String ip;
+    private int port;                      //port of each broker
+    private ServerSocket serverSocket;    //the server socket for each broker (the socket that is used for accepting
                                         // and rejecting clients
-    public ArrayList<Integer> getBrokers;
-    static List<Consumer> registeredUsers = new ArrayList<>();
-    static List<Publisher> registeredPublishers = new ArrayList<>();
+    private List<Broker> brokers = null;
+    private List<Consumer> registeredConsumers = new ArrayList<>();
+    private List<Publisher> registeredPublishers = new ArrayList<>();
+    ObjectOutputStream out = null;
+    ObjectInputStream in = null;
 
     public static void main(String [] args){
 
-        Broker broker = new Broker(4321);
+        Broker broker = new Broker("127.0.0.1" ,4321);
         broker.connect();
     }
 
 
-    Broker(int port){
+    Broker(String ip, int port){
+        this.ip = ip;
         this.port = port;
     }
 
@@ -44,6 +48,7 @@ public class Broker implements BrokerImpl {
     public void connect() {
         try{
             this.serverSocket = new ServerSocket(this.port, 10);
+            this.ip = serverSocket.getInetAddress().toString();
             serverSocket.setReuseAddress(true);   //allows the socket to be bound even though a previous connection is in a timeout state.
             while(true){
 
@@ -53,12 +58,21 @@ public class Broker implements BrokerImpl {
                 clientThread.start();
             }
         } catch (IOException e){
-            e.printStackTrace();
+            System.out.println("Can't setup server on this port number or Can't accept client connection. ");
+        }finally {
+            this.disconnect();
         }
     }
 
     @Override
     public void disconnect() {
+        try {
+            this.in.close();
+            this.out.close();
+            this.serverSocket.close();
+        }catch (IOException e){
+            e.printStackTrace();
+        }
 
     }
 
@@ -81,12 +95,14 @@ public class Broker implements BrokerImpl {
 
     @Override
     public Publisher acceptConnection(Publisher publisher) {
-        return null;
+        this.registeredPublishers.add(publisher);
+        return publisher;
     }
 
     @Override
     public Consumer acceptConnection(Consumer consumer) {
-        return null;
+        this.registeredConsumers.add(consumer);
+        return consumer;
     }
 
 
@@ -108,6 +124,15 @@ public class Broker implements BrokerImpl {
     @Override
     public void filterConsumers(String s) {
 
+    }
+
+
+    public String getIp(){
+        return ip;
+    }
+
+    public int getPort(){
+        return port;
     }
 
 
