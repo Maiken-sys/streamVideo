@@ -1,3 +1,5 @@
+import org.checkerframework.checker.units.qual.C;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -7,6 +9,9 @@ public class ChannelName {
     private String channelName;
     private List<String> hashtagsPublished;
     private HashMap<String, ArrayList<Value>> userVideoFilesMap;
+
+    public ChannelName() {
+    }
 
     public ChannelName(String channelName){
         this.channelName = channelName;

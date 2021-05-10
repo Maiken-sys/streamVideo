@@ -1,10 +1,5 @@
-import java.io.*;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 public class AppNode extends Thread implements Node, AppNodeImpl{
     public Publisher publisher;
@@ -85,7 +80,7 @@ public class AppNode extends Thread implements Node, AppNodeImpl{
     }
 
     @Override
-    public ArrayList<Value> generateChunks(VideoFile video) {
+    public ArrayList<VideoFile> generateChunks(byte[] video) {
         return null;
     }
 

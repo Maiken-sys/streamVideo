@@ -1,14 +1,9 @@
 import java.io.*;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Arrays;
 import java.util.List;
-import java.security.MessageDigest;
-import java.util.Scanner;
 
 public class Publisher extends Thread implements AppNodeImpl {
     private ChannelName channel;
@@ -20,13 +15,15 @@ public class Publisher extends Thread implements AppNodeImpl {
 
     public Publisher(int port){
         this.port = port;
+        this.channel = new ChannelName("channel1");
+
     }
 
     public static void main(String [] args) throws IOException {
 
         Publisher pub = new Publisher(4321);
         pub.connect();
-        pub.addVideo("viral", pub.channel);
+        pub.addVideo("viral", pub.channel, "newVid");
     }
 
 
@@ -47,6 +44,7 @@ public class Publisher extends Thread implements AppNodeImpl {
     public void connect() {
         try {
             pubSocket = new Socket("127.0.0.1", this.port);
+            this.ip = this.pubSocket.getInetAddress().getHostAddress();
             out = new ObjectOutputStream(pubSocket.getOutputStream());
             in = new ObjectInputStream(pubSocket.getInputStream());
         } catch (UnknownHostException e) {
@@ -80,7 +78,9 @@ public class Publisher extends Thread implements AppNodeImpl {
     //*******************************************************************************
     @Override
     public void addHashTag(String s){
-        this.channel.getHashtagsPublished().add(s);
+        if (!this.channel.getHashtagsPublished().contains(s)){
+            this.channel.getHashtagsPublished().add(s);
+        }
         this.notifyBrokersForHashTags(s);
     }
 
@@ -100,27 +100,10 @@ public class Publisher extends Thread implements AppNodeImpl {
     }
 
    @Override
-    public void push(String s, Value v) {}
-/*         try {
-            //this.out = new ObjectOutputStream();
-        } catch (IOException ex) {
-            System.out.println("File not found. ");
-            ex.printStackTrace();
-        }
+    public void push(String s, Value v) {
 
-        byte[] bytes = new byte[16*1024];
+   }
 
-        try{
-            int count = 0;
-            while((count = in.read(bytes)) > 0){
-                out.write(bytes, 0, count);
-                System.out.println("push method");
-            }
-        }catch (IOException e){
-            e.printStackTrace();
-        }
-
-    } */
 
     @Override
     public void notifyFailure(Broker broker) {
@@ -138,30 +121,44 @@ public class Publisher extends Thread implements AppNodeImpl {
 
     }
 
-    public byte[]  addVideo(String hashtag, ChannelName channel) throws IOException {
-        File file = new File("/home/mnanos/Videos/testVid.mp4");
+    public void addVideo(String hashtag, ChannelName channel, String videoName) throws IOException {
+        File file = new File("C:\\Users\\Admin\\Downloads\\test.mp4");
         FileInputStream fileInputStream = new FileInputStream(file);
+        this.addHashTag(hashtag);
+        this.notifyBrokersForHashTags(hashtag);
         byte[] bFile = new byte[(int) file.length()];
 
         try{
             fileInputStream.read(bFile);
             fileInputStream.close();
-            for (int i = 0; i < bFile.length; i++)
-            {
-                System.out.print((char) bFile[i]);
-            }
+            //for (int i = 0; i < bFile.length; i++){ System.out.println((char) bFile[i] + "   " + bFile[i] ); }
 
         }catch(IOException e){
             e.printStackTrace();
         }
-        return null;
+
+
+
+        this.generateChunks(bFile);
     }
 
 
 
     @Override
-    public ArrayList<Value> generateChunks(VideoFile video) {
-        return null;
+    public ArrayList<VideoFile> generateChunks(byte[] video) {
+        ArrayList<VideoFile> list= new ArrayList<VideoFile>();
+        int chunk_size = 524288; //512kb per chunk
+
+        int start = 0;
+        while(start< video.length){
+            int end = Math.min(video.length, start + chunk_size);
+            VideoFile chunk = new VideoFile(end - start);
+            chunk.videoFileChunk = Arrays.copyOfRange(video, start, end);
+            list.add(chunk);
+            start += chunk_size;
+        }
+
+        return list;
     }
 
 

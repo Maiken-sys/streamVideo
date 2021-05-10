@@ -3,7 +3,6 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 public class Consumer implements AppNodeImpl {
     public int port;
@@ -115,7 +114,7 @@ public class Consumer implements AppNodeImpl {
     }
 
     @Override
-    public ArrayList<Value> generateChunks(VideoFile video) {
+    public ArrayList<VideoFile> generateChunks(byte[] video) {
         return null;
     }
 

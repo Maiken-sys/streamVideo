@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.logging.SimpleFormatter;
 
+
 import org.apache.commons.io.IOUtils;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
@@ -13,32 +14,43 @@ import org.apache.tika.parser.mp4.MP4Parser;
 import org.apache.tika.sax.BodyContentHandler;
 import org.xml.sax.SAXException;
 
+
+
 public class VideoFile {
 
+    ChannelName myChannel;
     String videoName;
-    String channelName;
+    //String channelName;
     String dateCreated;
-    String length;
+    private String length;
+    private int chunk_size;
     String framerate;
     ArrayList<String> associatedHashtags;
     byte[] videoFileChunk;
     String path;
 
-    public VideoFile(String channelName, ArrayList<String> associatedHashtags, String path, String videoName){
-
-        this.channelName = channelName;
-        this.associatedHashtags = associatedHashtags;
-        this.path = path;
+    public VideoFile(String hashtag, ChannelName myChannel, String videoName){
+        this.associatedHashtags = new ArrayList<>();
+        this.associatedHashtags.add(hashtag);
+        this.myChannel = myChannel;
         this.videoName = videoName;
     }
+    public VideoFile(String videoName, String hashtag){
+        this.videoName = videoName;
+        this.associatedHashtags.add(hashtag);
+    }
+    public VideoFile(int chunk_size){
+        this.videoFileChunk = new byte[chunk_size];
+    }
+
+
 
     public static void main(String[] args) throws TikaException, IOException, SAXException {
         ArrayList<String> hs = new ArrayList<>();
         hs.add("test1");
         hs.add("test2");
-        VideoFile t = new VideoFile("egageag",hs, "C:\\Users\\apostolis\\Desktop\\test.mp4", "test");
+        VideoFile t = new VideoFile("newVid", "viral" );
         t.readVideo();
-        System.out.println(t.channelName);
         System.out.println(t.length);
         System.out.println(t.dateCreated);
     }
@@ -57,6 +69,7 @@ public class VideoFile {
         dateCreated = strDate;
         length = metadata.get("xmpDM:duration");
         videoFileChunk = convert(path);
+        System.out.println(metadata);
     }
 
     public byte[] convert(String path) throws IOException {
@@ -70,5 +83,7 @@ public class VideoFile {
         byte[] bytes = bos.toByteArray();
         return bytes;
     }
+
+
 
 }

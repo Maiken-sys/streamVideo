@@ -12,7 +12,7 @@ public interface AppNodeImpl extends Node{
     public void push(String s, Value v);
     public void notifyFailure(Broker broker);
     public void notifyBrokersForHashTags(String s);
-    public ArrayList<Value> generateChunks(VideoFile video);
+    public ArrayList<VideoFile> generateChunks(byte[] video);
 
     public void register(Broker broker, String s);
     public void disconnect(Broker broker, String s);
