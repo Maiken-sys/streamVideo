@@ -9,10 +9,10 @@ public interface AppNodeImpl extends Node{
     public void removeHashTag(String s);
     public List<Broker> getBrokerList();
     public Broker hashTopic(String s);
-    public void push(String s, Value v);
+    public void push(String hashtag, String videoName);
     public void notifyFailure(Broker broker);
     public void notifyBrokersForHashTags(String s);
-    public ArrayList<VideoFile> generateChunks(byte[] video);
+    public ArrayList<VideoFile> generateChunks(byte[] video, String videoName);
 
     public void register(Broker broker, String s);
     public void disconnect(Broker broker, String s);

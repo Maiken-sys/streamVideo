@@ -69,7 +69,6 @@ public class Broker implements BrokerImpl {
         try {
             this.in.close();
             this.out.close();
-            this.serverSocket.close();
         }catch (IOException e){
             e.printStackTrace();
         }

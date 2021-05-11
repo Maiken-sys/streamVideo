@@ -16,8 +16,9 @@ import org.xml.sax.SAXException;
 
 
 
-public class VideoFile {
+public class VideoFile implements Serializable {
 
+    private static final long serialVersionUID = 6529685098267757690L;
     ChannelName myChannel;
     String videoName;
     //String channelName;

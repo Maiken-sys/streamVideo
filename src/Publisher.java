@@ -1,21 +1,30 @@
 import java.io.*;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Scanner;
 
 public class Publisher extends Thread implements AppNodeImpl {
     private ChannelName channel;
     private int port;
     private String ip;
     private Socket pubSocket;        //it is the socket that client uses to communicate with server
+    ArrayList<VideoFile> video;
     ObjectOutputStream out = null;
     ObjectInputStream in = null;
 
+
     public Publisher(int port){
         this.port = port;
-        this.channel = new ChannelName("channel1");
+        System.out.println("Please enter your channel Name.");
+        Scanner sc = new Scanner(System.in);
+        String name = sc.nextLine();
+        this.channel = new ChannelName(name);
 
     }
 
@@ -23,7 +32,9 @@ public class Publisher extends Thread implements AppNodeImpl {
 
         Publisher pub = new Publisher(4321);
         pub.connect();
-        pub.addVideo("viral", pub.channel, "newVid");
+        pub.addVideo( "newVid");
+        pub.push("gamw","newVid");
+
     }
 
 
@@ -51,8 +62,6 @@ public class Publisher extends Thread implements AppNodeImpl {
             System.err.println("Προσπαθείς να συνδεθεις σε άγνωστο host!!");
         } catch (IOException ioException) {
             ioException.printStackTrace();
-        }finally {
-           this.disconnect();
         }
     }
 
@@ -100,9 +109,59 @@ public class Publisher extends Thread implements AppNodeImpl {
     }
 
    @Override
-    public void push(String s, Value v) {
+    public void push(String hashtag, String videoName)  {
+        ArrayList<VideoFile> chunks = new ArrayList<VideoFile>();
+        chunks = this.channel.getUserVideoFilesMap().get(videoName);
+        System.out.println("Retrieving chunks of video with title " + videoName + "....");
+
+        try{
+            out.writeInt(chunks.size());
+            out.flush();
+            for (VideoFile chunk : chunks){
+                Value value = new Value(chunk);
+                out.writeObject(value);
+                out.flush();
+
+            }
+
+
+            System.out.println("Server should receive " + chunks.size() + "chunks");
+
+
+        }catch(IOException e){
+            System.err.println("Your push method has an IO problem");
+            e.printStackTrace();
+        }finally{
+            try{
+                System.out.println("Client Closing Connection");
+                in.close();
+                out.close();
+            }catch (IOException e){
+                e.printStackTrace();
+            }
+        }
+
 
    }
+
+    public void push1(int a, int b)  {
+
+        try{
+            out.writeInt(a);
+            out.flush();
+            out.writeInt(b);
+            out.flush();
+
+
+            int ans = in.readInt();
+            System.out.println("Molis mou epestrepse o server tin aoantisi  " + ans);
+
+        }catch(IOException e){
+            System.err.println("Your push method has an IO problem");
+            e.printStackTrace();
+        }
+
+    }
 
 
     @Override
@@ -121,13 +180,14 @@ public class Publisher extends Thread implements AppNodeImpl {
 
     }
 
-    public void addVideo(String hashtag, ChannelName channel, String videoName) throws IOException {
-        File file = new File("C:\\Users\\Admin\\Downloads\\test.mp4");
-        FileInputStream fileInputStream = new FileInputStream(file);
-        this.addHashTag(hashtag);
-        this.notifyBrokersForHashTags(hashtag);
-        byte[] bFile = new byte[(int) file.length()];
-
+    public void addVideo(String videoName) throws IOException {
+        //File file = new File("C:\\Users\\Admin\\Downloads\\test.mp4");
+        //FileInputStream fileInputStream = new FileInputStream(file);
+        //byte[] bFile = new byte[(int) file.length()];
+        Path path = Paths.get("C:\\Users\\Admin\\Downloads\\test.mp4");
+        byte[] bFile = Files.readAllBytes(path);
+        //for (int i = 0; i < bFile.length; i++){ System.out.println((char) bFile[i] + "   " + bFile[i] ); }
+        /*
         try{
             fileInputStream.read(bFile);
             fileInputStream.close();
@@ -137,15 +197,15 @@ public class Publisher extends Thread implements AppNodeImpl {
             e.printStackTrace();
         }
 
+         */
 
-
-        this.generateChunks(bFile);
+        this.generateChunks(bFile, videoName);
     }
 
 
 
     @Override
-    public ArrayList<VideoFile> generateChunks(byte[] video) {
+    public ArrayList<VideoFile> generateChunks(byte[] video, String videoName) {
         ArrayList<VideoFile> list= new ArrayList<VideoFile>();
         int chunk_size = 524288; //512kb per chunk
 
@@ -157,7 +217,7 @@ public class Publisher extends Thread implements AppNodeImpl {
             list.add(chunk);
             start += chunk_size;
         }
-
+        this.channel.getUserVideoFilesMap().put(videoName, list);
         return list;
     }
 

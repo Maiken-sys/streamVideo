@@ -8,7 +8,8 @@ public class ChannelName {
 
     private String channelName;
     private List<String> hashtagsPublished;
-    private HashMap<String, ArrayList<Value>> userVideoFilesMap;
+    private HashMap<String, ArrayList<VideoFile>> userVideoFilesMap;
+    Value video;
 
     public ChannelName() {
     }
@@ -20,6 +21,7 @@ public class ChannelName {
     }
 
 
+
     public String getChannelName(){
         return channelName;
     }
@@ -28,7 +30,7 @@ public class ChannelName {
         return hashtagsPublished;
     }
 
-    public HashMap<String, ArrayList<Value>> getUserVideoFilesMap() {
+    public HashMap<String, ArrayList<VideoFile>> getUserVideoFilesMap() {
         return this.userVideoFilesMap;
     }
 

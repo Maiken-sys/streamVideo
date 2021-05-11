@@ -65,7 +65,7 @@ public class AppNode extends Thread implements Node, AppNodeImpl{
     }
 
     @Override
-    public void push(String s, Value v) {
+    public void push(String hashtag, String videoName) {
 
     }
 
@@ -80,7 +80,7 @@ public class AppNode extends Thread implements Node, AppNodeImpl{
     }
 
     @Override
-    public ArrayList<VideoFile> generateChunks(byte[] video) {
+    public ArrayList<VideoFile> generateChunks(byte[] video, String videoName) {
         return null;
     }
 
