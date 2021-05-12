@@ -32,8 +32,7 @@ public class Publisher extends Thread implements AppNodeImpl {
 
         Publisher pub = new Publisher(4321);
         pub.connect();
-        pub.addVideo( "newVid");
-        pub.push("gamw","newVid");
+        pub.push("gamw","test.mp4");
 
     }
 
@@ -110,6 +109,14 @@ public class Publisher extends Thread implements AppNodeImpl {
 
    @Override
     public void push(String hashtag, String videoName)  {
+        try{
+            this.addVideo(videoName);
+        }catch (IOException e1){
+            System.err.println("Couldnt add video...");
+            e1.printStackTrace();
+        }
+
+
         ArrayList<VideoFile> chunks = new ArrayList<VideoFile>();
         chunks = this.channel.getUserVideoFilesMap().get(videoName);
         System.out.println("Retrieving chunks of video with title " + videoName + "....");
@@ -144,25 +151,6 @@ public class Publisher extends Thread implements AppNodeImpl {
 
    }
 
-    public void push1(int a, int b)  {
-
-        try{
-            out.writeInt(a);
-            out.flush();
-            out.writeInt(b);
-            out.flush();
-
-
-            int ans = in.readInt();
-            System.out.println("Molis mou epestrepse o server tin aoantisi  " + ans);
-
-        }catch(IOException e){
-            System.err.println("Your push method has an IO problem");
-            e.printStackTrace();
-        }
-
-    }
-
 
     @Override
     public void notifyFailure(Broker broker) {
@@ -184,7 +172,7 @@ public class Publisher extends Thread implements AppNodeImpl {
         //File file = new File("C:\\Users\\Admin\\Downloads\\test.mp4");
         //FileInputStream fileInputStream = new FileInputStream(file);
         //byte[] bFile = new byte[(int) file.length()];
-        Path path = Paths.get("C:\\Users\\Admin\\Downloads\\test.mp4");
+        Path path = Paths.get("C:\\Users\\Admin\\Downloads\\" + videoName);
         byte[] bFile = Files.readAllBytes(path);
         //for (int i = 0; i < bFile.length; i++){ System.out.println((char) bFile[i] + "   " + bFile[i] ); }
         /*
