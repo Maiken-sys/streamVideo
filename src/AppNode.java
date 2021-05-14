@@ -1,7 +1,7 @@
 import java.util.ArrayList;
 import java.util.List;
 
-public class AppNode extends Thread implements Node, AppNodeImpl{
+public class AppNode implements Node, AppNodeImpl{
     public Publisher publisher;
     public Consumer consumer;
 
@@ -9,11 +9,6 @@ public class AppNode extends Thread implements Node, AppNodeImpl{
 
     public static void main(String [] Args){
         System.out.println("mmmnaiasdasda");
-    }
-
-
-    public void run(){
-
     }
 
 

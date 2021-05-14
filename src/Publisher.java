@@ -19,20 +19,24 @@ public class Publisher extends Thread implements AppNodeImpl {
     ObjectInputStream in = null;
 
 
-    public Publisher(int port){
+    public Publisher(int port, String channelname){
         this.port = port;
-        System.out.println("Please enter your channel Name.");
-        Scanner sc = new Scanner(System.in);
-        String name = sc.nextLine();
-        this.channel = new ChannelName(name);
+        this.channel = new ChannelName(channelname);
 
     }
 
     public static void main(String [] args) throws IOException {
 
-        Publisher pub = new Publisher(4321);
+        Publisher pub = new Publisher(4321, "m");
         pub.connect();
-        pub.push("gamw","test.mp4");
+        pub.start();
+
+
+        //Publisher pub2 = new Publisher(4321, "n");
+        //pub2.start();
+        //pub2.connect();
+        //pub2.push("lampai", "test.mp4");
+
 
     }
 
@@ -54,9 +58,9 @@ public class Publisher extends Thread implements AppNodeImpl {
     public void connect() {
         try {
             pubSocket = new Socket("127.0.0.1", this.port);
+            out = new ObjectOutputStream(this.pubSocket.getOutputStream());
+            in = new ObjectInputStream(this.pubSocket.getInputStream());
             this.ip = this.pubSocket.getInetAddress().getHostAddress();
-            out = new ObjectOutputStream(pubSocket.getOutputStream());
-            in = new ObjectInputStream(pubSocket.getInputStream());
         } catch (UnknownHostException e) {
             System.err.println("Προσπαθείς να συνδεθεις σε άγνωστο host!!");
         } catch (IOException ioException) {
@@ -66,13 +70,14 @@ public class Publisher extends Thread implements AppNodeImpl {
 
     @Override
     public void disconnect() {
-        try {
-            this.in.close();
-            this.out.close();
-            this.pubSocket.close();
+        try{
+            System.out.println("Client Closing Connection");
+            in.close();
+            out.close();
         }catch (IOException e){
             e.printStackTrace();
         }
+
     }
 
     @Override
@@ -110,27 +115,27 @@ public class Publisher extends Thread implements AppNodeImpl {
    @Override
     public void push(String hashtag, String videoName)  {
         try{
-            this.addVideo(videoName);
+            this.addVideo(videoName);           //Calls method addVideo(line 174) that reads the mp4 file from the pc
         }catch (IOException e1){
             System.err.println("Couldnt add video...");
             e1.printStackTrace();
         }
 
 
-        ArrayList<VideoFile> chunks = new ArrayList<VideoFile>();
-        chunks = this.channel.getUserVideoFilesMap().get(videoName);
+        ArrayList<VideoFile> chunks = new ArrayList<VideoFile>(); //here we will save temporary the chunks
+        chunks = this.channel.getUserVideoFilesMap().get(videoName);    //retrieving the chunks from channel based on the video's name
         System.out.println("Retrieving chunks of video with title " + videoName + "....");
 
         try{
-            out.writeInt(chunks.size());
+            out.writeInt(1);
+            out.flush();
+            out.writeInt(chunks.size());    //notify broker for list size
             out.flush();
             for (VideoFile chunk : chunks){
                 Value value = new Value(chunk);
-                out.writeObject(value);
+                out.writeObject(value);     //sending each chunk to broker
                 out.flush();
-
             }
-
 
             System.out.println("Server should receive " + chunks.size() + "chunks");
 
@@ -138,14 +143,6 @@ public class Publisher extends Thread implements AppNodeImpl {
         }catch(IOException e){
             System.err.println("Your push method has an IO problem");
             e.printStackTrace();
-        }finally{
-            try{
-                System.out.println("Client Closing Connection");
-                in.close();
-                out.close();
-            }catch (IOException e){
-                e.printStackTrace();
-            }
         }
 
 
@@ -158,9 +155,9 @@ public class Publisher extends Thread implements AppNodeImpl {
     }
 
     @Override
-    public void notifyBrokersForHashTags(String s) {
+    public void notifyBrokersForHashTags(String hashtag) {
         try{
-            this.out.writeObject(s);
+            this.out.writeObject(hashtag);
             this.out.writeObject(this.channel);
         }catch (IOException e){
             System.out.println("Hashtag not given");
@@ -169,39 +166,24 @@ public class Publisher extends Thread implements AppNodeImpl {
     }
 
     public void addVideo(String videoName) throws IOException {
-        //File file = new File("C:\\Users\\Admin\\Downloads\\test.mp4");
-        //FileInputStream fileInputStream = new FileInputStream(file);
-        //byte[] bFile = new byte[(int) file.length()];
-        Path path = Paths.get("C:\\Users\\Admin\\Downloads\\" + videoName);
-        byte[] bFile = Files.readAllBytes(path);
-        //for (int i = 0; i < bFile.length; i++){ System.out.println((char) bFile[i] + "   " + bFile[i] ); }
-        /*
-        try{
-            fileInputStream.read(bFile);
-            fileInputStream.close();
-            //for (int i = 0; i < bFile.length; i++){ System.out.println((char) bFile[i] + "   " + bFile[i] ); }
+        Path path = Paths.get("C:\\Users\\Admin\\Downloads\\" + videoName);  //locate the file that publisher want to push
+        byte[] bFile = Files.readAllBytes(path);              //reads the mp4 file into a byte[] array
 
-        }catch(IOException e){
-            e.printStackTrace();
-        }
-
-         */
-
-        this.generateChunks(bFile, videoName);
+        this.generateChunks(bFile, videoName);              //Calls method generateChunks (line 184)
     }
 
 
 
     @Override
     public ArrayList<VideoFile> generateChunks(byte[] video, String videoName) {
-        ArrayList<VideoFile> list= new ArrayList<VideoFile>();
+        ArrayList<VideoFile> list= new ArrayList<VideoFile>();      //chunks will be saved on ArrayList list
         int chunk_size = 524288; //512kb per chunk
 
-        int start = 0;
+        int start = 0;      //variable start locates the 1st byte of each chunk
         while(start< video.length){
-            int end = Math.min(video.length, start + chunk_size);
-            VideoFile chunk = new VideoFile(end - start);
-            chunk.videoFileChunk = Arrays.copyOfRange(video, start, end);
+            int end = Math.min(video.length, start + chunk_size);  //variable end locates the last byte of each chunk
+            VideoFile chunk = new VideoFile(end - start); //connects every chunk with a VideoFile class object
+            chunk.videoFileChunk = Arrays.copyOfRange(video, start, end); //puts the chunk to the byte array of the object
             list.add(chunk);
             start += chunk_size;
         }
@@ -214,7 +196,38 @@ public class Publisher extends Thread implements AppNodeImpl {
         return this.port;
     }
 
+    public void run() {
+        int option;
 
+        while(true){
+            System.out.println("Select option: ");
+            System.out.println("1.Upload a video");
+            System.out.println("2.Delete a video");
+            System.out.println("3.Exit Program");
+            Scanner sc = new Scanner(System.in);
+            option = sc.nextInt();
+            sc.nextLine();
+
+            switch(option){
+                case 1:
+                    System.out.println("Choose the video you want to upload: ");
+                    String title = sc.nextLine();
+                    System.out.println("Choose the hashtag you want to add: ");
+                    String hashtag = sc.nextLine();
+                    this.push(hashtag, title);
+                    break;
+
+                case 3:
+                    try {
+                        out.writeInt(3);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    this.disconnect();
+            }
+        }
+
+    }
 
     //*******************************************************************************
     //Consumer-Only methods**********************************************************

@@ -12,6 +12,7 @@ public class Broker implements BrokerImpl {
     private List<Broker> brokers = null;
     private List<Consumer> registeredConsumers = new ArrayList<>();
     private List<Publisher> registeredPublishers = new ArrayList<>();
+    //private HashSet<>
     ObjectOutputStream out = null;
     ObjectInputStream in = null;
 
@@ -54,7 +55,7 @@ public class Broker implements BrokerImpl {
 
                 Socket clientSocket = this.serverSocket.accept();
                 System.out.println("New consumer connected "+ clientSocket.getInetAddress().getHostAddress() );
-                Thread clientThread = new Operations(clientSocket);
+                Thread clientThread = new Operations(clientSocket, this);
                 clientThread.start();
             }
         } catch (IOException e){
@@ -66,9 +67,10 @@ public class Broker implements BrokerImpl {
 
     @Override
     public void disconnect() {
-        try {
-            this.in.close();
-            this.out.close();
+        try{
+            System.out.println("Server Closing Connection");
+            in.close();
+            out.close();
         }catch (IOException e){
             e.printStackTrace();
         }
@@ -134,7 +136,5 @@ public class Broker implements BrokerImpl {
         return port;
     }
 
-
-
-
 }
+
