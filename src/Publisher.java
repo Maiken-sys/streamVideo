@@ -307,21 +307,24 @@ public class Publisher implements AppNodeImpl, Serializable {
                     // send videos
                     request = (String)in.readObject(); // keeps reading requests (receives null packages if no requests are made).
                     if(request != null){
-                        if(request.equals(Publisher.this.channelName.getChannelName())){    // send all videos.
-                            for(Value value : videos){
-                                sendVideo(value);
-                            }
-                        }
-                        else{   // if request is for hashtag.
-                            int count = 0;
-                            for(Value value : videos){
-                                if(value.getVideoFile().getAssociatedHashtags().equals(request)){
+                        if(request.matches("pull\n")){
+                            request = (String) in.readObject();
+                            if(request.equals(Publisher.this.channelName.getChannelName())){    // if request is for channel send all videos.
+                                for(Value value : videos){
                                     sendVideo(value);
-                                    count++;
                                 }
                             }
-                            if(count == 0)
-                                Publisher.this.notifyFailure(out);
+                            else{   // if request is for hashtag.
+                                int count = 0;
+                                for(Value value : videos){
+                                    if(value.getVideoFile().getAssociatedHashtags().equals(request)){
+                                        sendVideo(value);
+                                        count++;
+                                    }
+                                }
+                                if(count == 0)  // send fail message if there is no matching video.
+                                    Publisher.this.notifyFailure(out);
+                            }
                         }
                     }
                     if(this.hashed_to_name){    // thread connected to hash(name) broker sends all new videos.
@@ -332,13 +335,12 @@ public class Publisher implements AppNodeImpl, Serializable {
                                 if(this.videoFile != null) {
                                     sendVideo();
                                 }
-                            }else{  // if a video was deleted. (no need to inform broker).
+                            }else if (this.size > videos.size()){  // if a video was deleted. (no need to inform broker).
                                 this.size = videos.size();
                                 this.videoFile = getLast(videos);
                             }
                         }
                     }else{  // thread that connected to hash(hashtag) broker
-
                         if(this.videoFile != getLast(videos)){  // if new video is added, check hashtags, if hashtags are hashed here, send the video.
                             if(this.size < videos.size()){
                                 this.videoFile = getLast(videos);
@@ -351,9 +353,11 @@ public class Publisher implements AppNodeImpl, Serializable {
                                         break;
                                     }
                                 }
-                            }else{  // if video was deleted.    TODO send broker new updated channel.
+                            }else if (this.size > videos.size()){  //  if video was deleted. TODO send broker new updated channel.
                                 this.videoFile = getLast(videos);
                                 this.size = videos.size();
+                                out.writeObject("update-publisher\n");
+                                out.writeObject(channelName);
                             }
                         }
                         HashMap<String, Broker> map = hashtags.peek();
@@ -376,8 +380,6 @@ public class Publisher implements AppNodeImpl, Serializable {
         private void sendData(){
             try {
                 out.writeObject("new\n");
-                out.flush();
-                out.writeObject(channelName.getName());
                 out.flush();
                 request = (String)in.readObject();
                 if(request.matches("send\n"))
