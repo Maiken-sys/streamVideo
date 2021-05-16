@@ -98,12 +98,24 @@ public class Consumer implements AppNodeImpl {
     //*******************************************************************************
     @Override
     public void register(Broker broker, String s) {
-
+        try{
+            conSocket = new Socket(broker.getIp(), broker.getPort());
+            out.writeObject("subscribe\n");
+            out.flush();
+            out.writeObject(s);
+            out.flush();
+        }catch (Exception e){
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void disconnect(Broker broker, String s) {
-
+        try{
+            conSocket.close();
+        }catch (Exception e){
+            e.printStackTrace();
+        }
     }
 
     @Override
