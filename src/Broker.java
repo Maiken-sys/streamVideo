@@ -294,6 +294,7 @@ public class Broker implements BrokerImpl, Serializable {
                     }else if(request.matches("publisher\n")){   // publisher connection returns published hashtags
                         ChannelName channel = (ChannelName) in.readObject();
                         name = channel.getName();
+                        int pub_port = (Integer)in.readObject();
                         boolean exists = false;
                         for(Publisher pub : registeredPublishers){
                             if(pub.getChannelName().getName().equals(name)){
@@ -303,7 +304,7 @@ public class Broker implements BrokerImpl, Serializable {
                             }
                         }
                         if(!exists){
-                            publisher = Broker.this.acceptConnection(new Publisher(name));
+                            publisher = Broker.this.acceptConnection(new Publisher(name, pub_port));
                             out.writeObject(null);
                             out.flush();
                         }
@@ -358,10 +359,11 @@ public class Broker implements BrokerImpl, Serializable {
                     }else if(request.matches("sending-value\n")){
                         request = (String)in.readObject();  // requested string.
                         ArrayList<ArrayList<Value>> videos_to_send = getDataFromPublishers(request);
-                        System.err.println("test");
                         if(videos_to_send.size() == 0)
                             out.writeObject("no-videos-found\n");
                         else{
+                            out.writeObject("good\n");
+                            out.flush();
                             out.writeObject(videos_to_send.size());
                             for(ArrayList<Value> values : videos_to_send){
                                 out.writeObject(values.size());
@@ -394,15 +396,18 @@ public class Broker implements BrokerImpl, Serializable {
                 if(answer.matches("error\n"))
                     return null;
                 else{
-                    in.readObject();
+                    answer = String.valueOf((Integer)in.readObject());
                     int number_of_videos = Integer.parseInt(answer);
                     for(int i = 0; i < number_of_videos; i++){
                         ArrayList<Value> video = new ArrayList<>();
+                        in.readObject();
                         String videoName = (String)in.readObject();
                         int nOfChunks = in.readInt();
                         ArrayList<Value> newVid = new ArrayList<>();
                         for(int j=0; j<nOfChunks; j++) {
-                            newVid.add((Value) in.readObject());
+                            Value value = (Value)in.readObject();
+                            value.getVideoFile().setVideoName(videoName);
+                            newVid.add(value);
                         }
                         videos_to_send.add(newVid);
                     }
@@ -414,10 +419,6 @@ public class Broker implements BrokerImpl, Serializable {
             return videos_to_send;
         }
     }
-
-
-
-
 
     public String toString(){
         return this.brokerId+"-"+this.ip+"-"+this.port;

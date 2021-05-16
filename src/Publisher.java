@@ -23,9 +23,10 @@ public class Publisher implements AppNodeImpl, Serializable {
     static Scanner sc = new Scanner(System.in);
     private ArrayList<Broker> broker_connections = new ArrayList<>();
 
-    public Publisher(String name){
+    public Publisher(String name, int port){
         this.channelName = new ChannelName(name);
-
+        this.ip = "127.0.0.1";
+        this.port = port;
     }
 
     @Override
@@ -69,6 +70,7 @@ public class Publisher implements AppNodeImpl, Serializable {
             this.ip = this.pubSocket.getInetAddress().getHostAddress();
             out = new ObjectOutputStream(pubSocket.getOutputStream());
             in = new ObjectInputStream(pubSocket.getInputStream());
+            initialize_structures();
         } catch (UnknownHostException e) {
             System.err.println("Προσπαθείς να συνδεθεις σε άγνωστο host!!");
         } catch (IOException ioException) {
@@ -179,7 +181,6 @@ public class Publisher implements AppNodeImpl, Serializable {
     public void notifyBrokersForHashTags(String s) {
         try{
             Broker broker = hashTopic(s);
-            boolean already_connected = false;
             if(hashtags.isEmpty())
                 hashtags.offer(new HashMap<String, Broker>());
             HashMap<String, Broker> hs = hashtags.poll();
@@ -243,7 +244,6 @@ public class Publisher implements AppNodeImpl, Serializable {
     public ArrayList<VideoFile> generateChunks(byte[] video, String videoName) {
         ArrayList<VideoFile> list = new ArrayList<VideoFile>();
         int chunk_size = 524288; //512kb per chunk
-
         int start = 0;
         while(start < video.length){
             int end = Math.min(video.length, start + chunk_size);
@@ -302,13 +302,15 @@ public class Publisher implements AppNodeImpl, Serializable {
                 out.flush();
                 out.writeObject(channelName);
                 out.flush();
+                out.writeObject(port);
+                out.flush();
                 in.readObject();
                 if(!init_connection){
                     sendData();
                 }else{
                    // wait for broker connections
                     try{
-                        ServerSocket ss = new ServerSocket(port);
+                        ServerSocket ss = new ServerSocket(Publisher.this.port);
                         while (true){
                             Socket br = ss.accept();    // accept broker connections.
                             new Broker_connections(br).start();
@@ -367,21 +369,23 @@ public class Publisher implements AppNodeImpl, Serializable {
                     }
                 }
                 else{
-                    boolean sent = false;
                     for(Value value : videos){
                         ArrayList<String> hashtags = value.getVideoFile().getAssociatedHashtags();
                         if(hashtags.contains(request)){
                             videos_to_send.add(value);
-                            sent = true;
                         }
                     }
-                    if(!sent)
-                        notifyFailure(out);
-                    else{
-                        out.writeObject(videos_to_send.size());
-                        for(Value value : videos_to_send){
-                            sendVideo(value);
-                        }
+                }
+                if(videos_to_send.size() == 0) {
+                    notifyFailure(out);
+                }
+                else{
+                    out.writeObject("good\n");
+                    out.flush();
+                    out.writeObject(videos_to_send.size());
+                    out.flush();
+                    for(Value value : videos_to_send){
+                        sendVideo(value);
                     }
                 }
             }catch (Exception e){

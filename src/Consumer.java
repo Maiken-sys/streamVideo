@@ -92,8 +92,9 @@ public class Consumer implements AppNodeImpl {
             out.writeObject(s);
             out.flush();
             String answer = (String)in.readObject();
-            if(answer.matches("no-videos-found\n"))
+            if(answer.matches("no-videos-found\n")) {
                 System.err.println(answer);
+            }
             else{
                 int sz;
                 int numOfValues = (Integer)in.readObject();

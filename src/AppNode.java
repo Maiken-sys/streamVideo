@@ -11,18 +11,20 @@ public class AppNode extends Thread implements Node, AppNodeImpl{
     private Publisher publisher;
     private Consumer consumer;
     private String name;
+    private int port;
     private static Scanner sc = new Scanner(System.in);
 
 
-    public AppNode(String name){
+    public AppNode(String name, int port){
         this.name = name;
-        publisher = new Publisher(name);
+        this.port = port;
+        publisher = new Publisher(name, port);
         consumer = new Consumer(name);
     }
 
-    public static void main(String [] Args){
+    public static void main(String [] args){
         System.out.println("Enter you username:");
-        AppNode appNode1 = new AppNode(sc.nextLine());
+        AppNode appNode1 = new AppNode(sc.nextLine(), Integer.parseInt(args[0]));
         appNode1.start();
     }
 
@@ -30,17 +32,21 @@ public class AppNode extends Thread implements Node, AppNodeImpl{
     public void run(){
         publisher.connect();
         consumer.connect();
-        System.out.println("CHOOSE ACTION");
-        System.out.println("===========================");
-        System.out.println("1. ADD VIDEO.");
-        System.out.println("2. SEARCH TOPIC.");
-        int answer = Integer.parseInt(sc.nextLine());
-        switch (answer){
-            case 1: publisher.addVideo();
-            case 2:
+        while(true){
+            System.out.println("CHOOSE ACTION");
+            System.out.println("========================");
+            System.out.println("1. ADD VIDEO.");
+            System.out.println("2. DELETE VIDEO.");
+            System.out.println("3. SEARCH TOPIC.");
+            int answer = Integer.parseInt(sc.nextLine());
+            if(answer == 1)
+                publisher.addVideo();
+            else if(answer == 2){
+
+            }else if(answer == 3){
                 System.out.println("ENTER TOPIC");
                 consumer.request(sc.nextLine());
-            default:
+            }
         }
     }
 

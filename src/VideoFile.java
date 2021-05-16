@@ -1,18 +1,14 @@
 import java.io.*;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
-import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.mp4.MP4Parser;
 import org.apache.tika.sax.BodyContentHandler;
-import org.xml.sax.SAXException;
 
 
 
@@ -93,12 +89,19 @@ public class VideoFile implements Serializable{
     }
 
     public void saveVideo(String name) throws IOException {
-        FileOutputStream out = new FileOutputStream(name + "/" + this.videoName);
+        File f = new File(name + "/");
+        if(!f.exists())
+            f.mkdir();
+        FileOutputStream out = new FileOutputStream(f+ "/" + videoName);
         out.write(this.videoFileChunk);
     }
 
     public ChannelName getMyChannel(){
         return myChannel;
+    }
+
+    public void setVideoName(String name){
+        this.videoName = name;
     }
 
     public ArrayList<String> getAssociatedHashtags(){
