@@ -18,9 +18,10 @@ public class Broker implements BrokerImpl, Serializable {
     private List<Publisher> registeredPublishers = new ArrayList<>();
     private ObjectOutputStream out = null;
     private ObjectInputStream in = null;
-    private HashMap<String, ArrayList<String>> channel_subscriptions = new HashMap<String, ArrayList<String>>(); // contains <consumer, arraylist<subscriber name>> pairs
-    private HashMap<String, ArrayList<String>> hashtag_subscriptions = new HashMap<String, ArrayList<String>>(); // contains <consumer, arraylist<hashtag>> pairs
-    private final LinkedBlockingQueue<ArrayList<Value>> videos = new LinkedBlockingQueue<ArrayList<Value>>();
+    private LinkedBlockingQueue<String> consumer_requests = new LinkedBlockingQueue<String>(); // contains consumer requests.
+    private LinkedBlockingQueue<ArrayList<Value>> publisher_responses = new LinkedBlockingQueue<ArrayList<Value>>(); // contains chunked videos.
+    private HashMap<ChannelName, ChannelName> channel_subscriptions = new HashMap<ChannelName, ChannelName>();  // contains channel subscriptions.
+    private HashMap<ChannelName, String> hashtag_subscriptions = new HashMap<ChannelName, String>();    // contains hashtag subscriptions.
     private Object lock = new Object();
 
     public static void main(String [] args){
@@ -61,7 +62,7 @@ public class Broker implements BrokerImpl, Serializable {
             while(true){
                 Socket clientSocket = this.serverSocket.accept();
                 System.out.println("Client connected "+ clientSocket.getInetAddress().getHostAddress());
-                Thread clientThread = new Connection(clientSocket, videos, lock);
+                Thread clientThread = new Connection(clientSocket, consumer_requests, publisher_responses, lock);
                 clientThread.start();
             }
         } catch (IOException e){
@@ -219,13 +220,11 @@ public class Broker implements BrokerImpl, Serializable {
         private ObjectInputStream in;
         private ObjectOutputStream out;
         private Socket connection;
-        LinkedBlockingQueue<ArrayList<Value>> videos;
         Publisher publisher;
         Consumer consumer;
         Object lock;
-        public Connection(Socket connection, LinkedBlockingQueue<ArrayList<Value>> videos, Object lock){
+        public Connection(Socket connection, LinkedBlockingQueue<String> consumer_requests, LinkedBlockingQueue<ArrayList<Value>> publisher_responses, Object lock){
             this.connection = connection;
-            this.videos = videos;
             this.lock = lock;
             try{
                 out = new ObjectOutputStream(connection.getOutputStream());
@@ -240,7 +239,6 @@ public class Broker implements BrokerImpl, Serializable {
             // wait for messages
             String request;
             String name;
-            String val;
             try {
                 while(true){
                     request = (String)in.readObject();
@@ -295,21 +293,19 @@ public class Broker implements BrokerImpl, Serializable {
                             newVid.add((Value) in.readObject());
                         }
                         System.out.println("Retrieved " + newVid.size() + " chunks");
-                        videos.offer(newVid);
+                        //videos.offer(newVid);
                         //VideoFile file = new VideoFile(newVid, videoName);
                         //file.saveVideo();
                     }else if(request.matches("send-brokers\n")){
                         out.writeObject(Broker.this.getBrokers());
-                    }else if(request.matches("hash\n")){
+                    }else if(request.matches("hash\n")){    // if client requests value hashing.
                         String value = (String)in.readObject();
                         Broker broker = Broker.this.hash(value);
                         out.writeObject(broker.getIp());   // send broker ip + port with based on hash value
                         out.flush();
                         out.writeObject(broker.getPort());
                         out.flush();
-                    }else if(request.matches("new\n")){
-                        name = (String)in.readObject();
-                        String  hashtag = (String)in.readObject();
+                    }else if(request.matches("new\n")){ // if new video is available.
                         out.writeObject("send\n");
                         out.flush();
                     }
