@@ -6,6 +6,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -424,17 +425,15 @@ public class Broker {
             try{
                 // send all related videos of the last 24 hours.
                 Date maxDate=null;
-                System.err.println(consumer.getChannelName().getName());
                 synchronized (videos){
                     for(ArrayList<Value> values : videos){
                         if(values.get(0).getChannelName().getName().equals(consumer.getChannelName().getName())){
-                            System.err.println(2);
                             continue;
                         }
                         if(maxDate == null){
                             maxDate = values.get(0).getDate_uploaded();
                         }else{
-                            if(maxDate.getTime() < values.get(0).getDate_uploaded().getTime()){
+                            if(maxDate.before(values.get(0).getDate_uploaded())){
                                 maxDate = values.get(0).getDate_uploaded();
                             }
                         }
@@ -442,8 +441,7 @@ public class Broker {
                         long days = diff / (24 * 60 * 60 * 1000);
                         if(days <= 1){
                            send_video(values);
-                        }else
-                            System.err.println(3);
+                        }
                     }
                 }
                 while (true){
