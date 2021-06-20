@@ -5,20 +5,28 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.Activity;
+import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Debug;
 import android.os.Handler;
 import android.util.Log;
 import android.util.Pair;
 import android.view.View;
 import android.widget.Adapter;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ListView;
+import android.widget.MediaController;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -43,6 +51,7 @@ public class feedActivity extends AppCompatActivity {
     String username;
     String password;
     Handler feedHandler;
+    boolean logged = false;
     int interval = 5000;
     LinkedBlockingQueue<String> videos = new LinkedBlockingQueue<>();
     ArrayList<VideoString> videoList = new ArrayList<>();
@@ -51,8 +60,8 @@ public class feedActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        feedHandler = new Handler();
         setContentView(R.layout.activity_feed);
+        feedHandler = new Handler();
         listView = findViewById(R.id.feedList);
         searchText = findViewById(R.id.searchText);
         searchBtn = findViewById(R.id.imageButton);
@@ -75,8 +84,7 @@ public class feedActivity extends AppCompatActivity {
         for(Object obj : v){
             String video_str = obj.toString();
             String[] data = video_str.split("\\|");
-            videoList.add(new VideoString(data[0].split("=")[1], data[1].split("=")[1],Float.parseFloat(data[2].split("=")[1]), (data[3].split("=")[1])));
-
+            videoList.add(new VideoString(data[0].split("=")[1], data[1].split("=")[1],Float.parseFloat(data[2].split("=")[1]), (data[3].split("=")[1]), video_str));
         }
         adapter = new ArrayAdapter<VideoString>(this, android.R.layout.simple_list_item_1, videoList);
         listView.setAdapter(adapter);
@@ -87,9 +95,18 @@ public class feedActivity extends AppCompatActivity {
                 request(searchText.getText().toString());
             }
         });
+
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                consumer.interrupt();
+                receive_video(videoList.get(position).getOriginal());
+            }
+        });
     }
 
     public boolean connect(String username, String password) {
+        logged = true;
         publisher = new Publisher(username);
         consumer = new Consumer(username);
         try{
@@ -102,12 +119,97 @@ public class feedActivity extends AppCompatActivity {
     }
 
     private void request(String req){
-        new Request().execute(req);
-        long time_requested = System.currentTimeMillis();
-        while(consumer.getRequest_data().isEmpty() || Math.abs(time_requested - System.currentTimeMillis()) > 4000){
-
+        String[] data = new String[0];
+        try {
+            consumer.interrupt();
+            data = new Request(req, -1).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR).get();
+        }catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+        if(data.length == 0){
+            Toast.makeText(this, "No results found", Toast.LENGTH_LONG).show();
+        }else{
+            Intent results = new Intent(this, resultsActivity.class);
+            results.putExtra("data", data);
+            startActivityForResult(results, 1);
         }
     }
+
+    private void receive_video(String s){
+
+        try{
+            VideoFile videoFile = new ReceiveVideo(s).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR).get();
+            playVideo(videoFile);
+
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    private void playVideo(VideoFile videoFile){
+        Intent intent = new Intent(this, videoActivity.class);
+        writeToInternalStorage(videoFile);
+        intent.putExtra("name", videoFile.getChannelName()+videoFile.getVideoName());
+        startActivityForResult(intent, 2);
+    }
+
+    private boolean deleteInternalStorage(String name){
+        ContextWrapper contextWrapper = new ContextWrapper(getApplicationContext());
+        File dir = contextWrapper.getDir(getFilesDir().getName(), Context.MODE_PRIVATE);
+        File file = new File(dir, name);
+        return file.delete();
+    }
+
+    private void writeToInternalStorage(VideoFile videoFile){
+        ContextWrapper contextWrapper = new ContextWrapper(getApplicationContext());
+        File directory = contextWrapper.getDir(getFilesDir().getName(), Context.MODE_PRIVATE);
+        File file =  new File(directory, videoFile.getChannelName()+videoFile.getVideoName());
+        try {
+            FileOutputStream out = new FileOutputStream(file, false);
+            out.write(videoFile.getVideoFileChunk());
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if(requestCode == 1){
+            boolean changed = false;
+            if(resultCode == Activity.RESULT_OK){
+                String video = data.getStringExtra("video");
+                changed = data.getBooleanExtra("changed", false);
+                receive_video(video);
+            }
+            if (resultCode == Activity.RESULT_CANCELED) {
+                changed = data.getBooleanExtra("changed", false);
+            }
+            if(changed == true){
+                boolean subscribe = data.getBooleanExtra("subscribe", false);
+                String topic = data.getStringExtra("topic");
+                    try{
+                    if(subscribe){
+                        new Request(topic, 1).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR).get();
+                    }else{
+                        new Request(topic, 2).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR).get();
+                    }
+                    }catch (ExecutionException | InterruptedException e){
+                        e.printStackTrace();
+                    }
+
+            }
+        }else if(requestCode == 2){
+            if(resultCode == Activity.RESULT_OK){
+                String video = data.getStringExtra("name");
+                deleteInternalStorage(video);
+            }
+        }
+    }
+
+
 
     private class Connection extends AsyncTask<Pair<String, String>, String, String> {
 
@@ -128,12 +230,34 @@ public class feedActivity extends AppCompatActivity {
         }
     }
 
-    private class Request extends AsyncTask<String, String, String[]>{
+
+
+    private class Request extends AsyncTask<Void, Void, String[]>{
 
         String[] result;
+        String req;
+        int action;
+        public Request(String req, int action){
+            this.req = req;
+            this.action = action;
+        }
         @Override
-        protected String[] doInBackground(String... strings) {
-            result = consumer.request(strings[0]);
+        protected String[] doInBackground(Void... voids) {
+            result = consumer.request(req, action).first;
+            return result;
+        }
+    }
+
+    private class ReceiveVideo extends AsyncTask<Void, Void, VideoFile>{
+
+        VideoFile result;
+        String videoName;
+        public ReceiveVideo(String videoName){
+            this.videoName = videoName;
+        }
+        @Override
+        protected VideoFile doInBackground(Void... voids) {
+            result = consumer.request(videoName, 0).second;
             return result;
         }
     }
@@ -147,7 +271,7 @@ public class feedActivity extends AppCompatActivity {
             Object[] videos_received = consumer.getVideos().toArray();
             for(Object obj : videos_received){
                 String[] data = obj.toString().split("\\|");
-                arrayList.add(new VideoString(data[0].split("=")[1], data[1].split("=")[1],Float.parseFloat(data[2].split("=")[1]), data[3].split("=")[1]));
+                arrayList.add(new VideoString(data[0].split("=")[1], data[1].split("=")[1],Float.parseFloat(data[2].split("=")[1]), data[3].split("=")[1], obj.toString()));
             }
             return null;
         }
@@ -183,17 +307,23 @@ public class feedActivity extends AppCompatActivity {
         feedHandler.removeCallbacks(feedChecker);
     }
 
-    private class VideoString implements Comparable<VideoString>{
+    public static class VideoString implements Comparable<VideoString>{
 
         private String channel;
         private String videoName;
         private float duration;
         private Date dateUploaded;
-        DateFormat df = new SimpleDateFormat("EEE-MMM-d-yyyy HH:mm:ss");
-        public VideoString(String channel, String videoName, float duration, String dateUploaded) {
+        private String original;
+        private DateFormat df = new SimpleDateFormat("EEE-MMM-d-yyyy HH:mm:ss");
+
+
+
+
+        public VideoString(String channel, String videoName, float duration, String dateUploaded, String original) {
             this.channel = channel;
             this.videoName = videoName;
             this.duration = duration;
+            this.original = original;
             String[] temp = dateUploaded.split(" ");
             String dd = temp[0]+"-"+temp[1]+"-"+temp[2]+"-"+temp[5]+" "+temp[3];
             try {
@@ -211,6 +341,10 @@ public class feedActivity extends AppCompatActivity {
             return duration;
         }
 
+        public String getOriginal() {
+            return original;
+        }
+
         public Date getDateUploaded(){
             return dateUploaded;
         }
@@ -222,7 +356,7 @@ public class feedActivity extends AppCompatActivity {
 
         @Override
         public String toString(){
-            return this.videoName+"    uploaded by "+this.channel+"\n"+this.dateUploaded;
+            return this.videoName+"    uploaded by "+this.channel+"     duration: "+duration+"\n"+this.dateUploaded;
         }
     }
 }

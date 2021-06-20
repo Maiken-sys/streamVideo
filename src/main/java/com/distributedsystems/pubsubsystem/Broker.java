@@ -1,5 +1,7 @@
 package com.distributedsystems.pubsubsystem;
 
+import org.apache.log4j.xml.SAXErrorHandler;
+
 import java.io.*;
 import java.math.BigInteger;
 import java.net.ServerSocket;
@@ -214,6 +216,7 @@ public class Broker {
                                 if(temp_broker.getPort() == Broker.this.getPort())
                                     broker_data.addBrokerData(Broker.this.getPort(), hashtag);
                             }
+                            broker_data.addBrokerData(Broker.this.getPort(), values.get(0).toString());
                         }
                     }
                     synchronized (publishers){
@@ -379,6 +382,7 @@ public class Broker {
                             if(!exists){
                                 consumers.offer(consumer);
                             }
+                            break;
                         }
                     }else if(request.matches("check-subscription\n")){
                         String subscription = (String)in.readObject();
@@ -412,6 +416,7 @@ public class Broker {
                         synchronized (videos){
                             videos.notifyAll(); // notify to check if consumer doesn't have active subscriptions.
                         }
+                        break;
                     }else{  // if request is of a topic (channel name/hashtag).
                         ArrayList<String> video_data = getVideoData(request);
                         sendVideosFound(video_data);
@@ -423,10 +428,28 @@ public class Broker {
         }
         private void send_to_subscribers(){
             try{
+                synchronized (consumers){
+                    for(Consumer c : consumers){
+                        if(c.getChannelName().getName().equals(consumer.getChannelName().getName()))
+                            consumer = c;
+                    }
+                }
                 // send all related videos of the last 24 hours.
                 Date maxDate=null;
                 synchronized (videos){
                     for(ArrayList<Value> values : videos){
+                        boolean pass = false;
+                        if(consumer.getSubscriptions().contains(values.get(0).getChannelName().getName())) {
+                           pass = true;
+                        }
+                        for(String hs : values.get(0).getVideoFile().getAssociatedHashtags()){
+                            if(consumer.getSubscriptions().contains(hs))
+                                pass = true;
+                        }
+                        if(!pass){
+                            System.err.println("CONSUMER "+consumer.getChannelName().getName() + " NOT GOOD " +consumer.getSubscriptions().size());
+                            continue;
+                        }
                         if(values.get(0).getChannelName().getName().equals(consumer.getChannelName().getName())){
                             continue;
                         }

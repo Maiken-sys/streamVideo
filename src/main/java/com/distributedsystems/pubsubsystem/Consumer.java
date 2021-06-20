@@ -2,6 +2,7 @@ package com.distributedsystems.pubsubsystem;
 
 import android.os.AsyncTask;
 import android.util.Log;
+import android.util.Pair;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -22,10 +23,10 @@ public class Consumer {
     private LinkedBlockingQueue<String> subscriptions = new LinkedBlockingQueue<>();
     private LinkedBlockingQueue<Integer> connections = new LinkedBlockingQueue<>();
     private LinkedBlockingQueue<String> videos = new LinkedBlockingQueue<>();
-    private LinkedBlockingQueue<String> request_data = new LinkedBlockingQueue<>();
     private String ip;
     ObjectOutputStream out = null;
     ObjectInputStream in = null;
+    boolean interrupt = false;
 
 
     public Consumer(String name){
@@ -93,20 +94,26 @@ public class Consumer {
         Info broker_data = getBrokers();
         if(broker_data != null){
             for(int port : broker_data.getSubscriptions()){
-                new Connection(this).execute(new DataPack(ip, port, true, null, subscriptions, connections, videos, request_data));
+                new Connection().execute(new DataPack(ip, port, true, null, subscriptions, connections, videos, -1));
             }
         }
     }
 
-    public String[] request(String s) {
+    public Pair<String[], VideoFile> request(String s, int action) {
         Info broker_data = getBrokers();
         int broker_port = broker_data.getValuePort(s);
-        String[] result = new String[0];
+        Pair<String[], VideoFile> pair = new Pair<>(new String[0], null);
         if(broker_port != -1){
-            new Connection(this).execute(new DataPack(ip, broker_port, false, s, subscriptions, connections, videos, request_data));
+            try {
+                pair = new Connection().execute(new DataPack(ip, broker_port, false, s, subscriptions, connections, videos, action)).get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
+        }else{
         }
-        return result;
+        return pair;
     }
+
 
     public ChannelName getChannelName() {
         return channelName;
@@ -122,9 +129,12 @@ public class Consumer {
     }
 
 
-    public LinkedBlockingQueue<String> getRequest_data() {
-        return request_data;
+
+    public void interrupt(){
+        this.interrupt = true;
     }
+
+
 
     public void subscribe(String topic){
         subscriptions.add(topic);
@@ -135,14 +145,14 @@ public class Consumer {
     }
 
     public void startConnection(String ip, int port){
-        new Connection(this).execute(new DataPack(ip, port, true, "", subscriptions, connections, videos, request_data));
+        new Connection().execute(new DataPack(ip, port, true, "", subscriptions, connections, videos, -1));
     }
 
     public LinkedBlockingQueue<String> getVideos() {
         return videos;
     }
 
-    private class Connection extends AsyncTask<DataPack, String, String[]> {
+    private class Connection extends AsyncTask<DataPack, String, Pair<String[], VideoFile>> {
 
         Scanner sc = new Scanner(System.in);
         ObjectInputStream in;
@@ -155,15 +165,13 @@ public class Consumer {
         LinkedBlockingQueue<String> subscriptions;
         LinkedBlockingQueue<Integer> connections;
         LinkedBlockingQueue<String> videos;
-        Consumer caller;
-        public Connection(Consumer caller){
-            this.caller = caller;
-        }
+        int action = -1;    // -1: send request, 0: receive video, 1: subscribe, 2: unsubscribe
 
         @Override
-        protected String[] doInBackground(DataPack... dataPacks){
+        protected Pair<String[], VideoFile> doInBackground(DataPack... dataPacks){
             try{
-                String[] result;
+                String[] result = null;
+                VideoFile videoFile = null;
                 DataPack dataPack = dataPacks[0];
                 this.ip = dataPack.getIp();
                 this.port = dataPack.getPort();
@@ -172,6 +180,7 @@ public class Consumer {
                 this.subscriptions = dataPack.getSubscriptions();
                 this.connections = dataPack.getConnections();
                 this.videos = dataPack.getVideos();
+                this.action = dataPack.getAction();
                 socket = new Socket(ip, port);
                 out = new ObjectOutputStream(socket.getOutputStream());
                 in = new ObjectInputStream(socket.getInputStream());
@@ -196,8 +205,13 @@ public class Consumer {
                         String msg="";
                         out.writeObject("listener\n");
                         out.flush();
-                        while(true){
-                            msg = (String)in.readObject();
+                        socket.setSoTimeout(500);
+                        while(true && !interrupt){
+                            try{
+                                msg = (String)in.readObject();
+                            }catch (Exception e){
+                                continue;
+                            }
                             if(msg.matches("new-video\n")){
                                 out.writeObject("ack\n");
                                 out.flush();
@@ -215,8 +229,7 @@ public class Consumer {
                                             values.add((Value) in.readObject());
                                         }
                                         VideoFile video = new VideoFile(values, values.get(0).getVideoFile().getVideoName());
-                                        System.err.println(video.getVideoName());
-                                        //video.saveVideo(channelName.getName());
+                                        // TODO SAVE VIDEO TO INTERNAL STORAGE
                                         videos.offer(title);
                                     }
                                 }
@@ -227,25 +240,26 @@ public class Consumer {
                         e.printStackTrace();
                     }
                 }else{
-                    send_request(request);
-                    String[] videos_found = receive_answer();
-                    boolean is_subscribed;
-
-                    out.writeObject("check-subscription\n");
-                    out.flush();
-                    out.writeObject(request);
-                    out.flush();
-                    is_subscribed = in.readBoolean();
-                    result = new String[videos_found.length+1];
-                    result[0] = String.valueOf(is_subscribed);
-                    for(int i=1; i<videos_found.length;i++){
-                        result[i] = videos_found[i-1];
+                    if(action == -1){
+                        send_request(request);
+                        String[] videos_found = receive_answer();
+                        boolean is_subscribed;
+                        out.writeObject("check-subscription\n");
+                        out.flush();
+                        out.writeObject(request);
+                        out.flush();
+                        is_subscribed = in.readBoolean();
+                        result = new String[videos_found.length+2];
+                        result[0] = request;
+                        result[1] = String.valueOf(is_subscribed);
+                        for(int i=0; i<videos_found.length;i++){
+                            result[i+2] = videos_found[i];
+                        }
                     }
-                    if(is_subscribed){
 
-                    }
-                    // TODO FIX SUB / UNSUB
-                    /*if(sub){
+                    if(action == 1){
+                        out.writeObject("request\n");
+                        out.flush();
                         out.writeObject("subscribe\n");
                         out.flush();
                         out.writeObject(request);
@@ -253,9 +267,13 @@ public class Consumer {
                         synchronized (subscriptions){
                             subscriptions.add(request);
                         }
-                        Consumer.this.startConnection(this.ip, this.port);
-                    }else if(unsub){
+                        //Consumer.this.startConnection(this.ip, this.port);
+
+                    }
+                    if(action == 2){
                         Consumer.this.unsubscribe(request);
+                        out.writeObject("request\n");
+                        out.flush();
                         out.writeObject("unsubscribe\n");
                         out.flush();
                         out.writeObject(request);
@@ -263,25 +281,15 @@ public class Consumer {
                         synchronized (subscriptions){
                             subscriptions.remove(request);
                         }
-                    }*/
-                    synchronized (request_data){
-                        for(String str : result){
-                            request_data.offer(str);
-                        }
                     }
-                    if(videos_found != null && videos_found.length>0){
-                        String video_string = select_video(videos_found);
-                        if(!video_string.isEmpty()){
-                            out.writeObject(video_string);
-                            out.flush();
-                            receive_video();
-                        }else{
-                            this.socket.close();
-                        }
-                    }else{
-                        System.err.println("NO VIDEOS FOUND");
+                    if(action == 0){
+                        out.writeObject("request\n");
+                        out.flush();
+                        out.writeObject(request);
+                        out.flush();
+                        videoFile = receive_video();
                     }
-                    return result;
+                    return new Pair<>(result, videoFile);
                 }
             }catch (IOException e){
                 e.printStackTrace();
@@ -315,24 +323,8 @@ public class Consumer {
             }
             return null;
          }
-         private String select_video(String[] videos){
-             System.out.println("FOUND " + videos.length + " VIDEOS");
-             System.out.println("============================");
-             for(int i = 0; i < videos.length; i++){
-                 System.out.println(i+1 + ". " + videos[i]);
-             }
-             System.out.println("0. EXIT");
-             int vid=-1;
-             do{
-                 try{vid = Integer.parseInt(sc.nextLine());}catch (Exception e){}
-             }while (vid < 0 && vid > videos.length);
-             if(vid == 0)
-                 return "";
-             return videos[vid-1];
-         }
 
-
-         private void receive_video(){
+         private VideoFile receive_video(){
              try{
                  ArrayList<Value> video_chunks = new ArrayList<>();
                  String answer = (String) in.readObject();
@@ -342,23 +334,17 @@ public class Consumer {
                          video_chunks.add((Value) in.readObject());
                      }
                      VideoFile video = new VideoFile(video_chunks, video_chunks.get(0).getVideoFile().getVideoName());
-                     video.saveVideo(channelName.getName());
-                     System.out.println("PLAY VIDEO: " + video.getVideoName() + " ? [y/n]");
-                     String str;
-                     do{
-                         str = sc.nextLine();
-                     }while (!str.equalsIgnoreCase("y") && !str.equalsIgnoreCase("n"));
-                     if(str.equalsIgnoreCase("y"))
-                        playData(channelName.getName(), video);
+                     return video;
                  }
              }catch (Exception e){
                  e.printStackTrace();
              }
+             return null;
          }
 
         @Override
-        protected void onPostExecute(String[] strings) {
-            super.onPostExecute(strings);
+        protected void onPostExecute(Pair<String[], VideoFile> pair) {
+            super.onPostExecute(pair);
             Consumer.this.videos = videos;
         }
     }
@@ -372,7 +358,7 @@ public class Consumer {
         private LinkedBlockingQueue<String> subscriptions;
         private LinkedBlockingQueue<Integer> connections;
         private LinkedBlockingQueue<String> videos;
-        LinkedBlockingQueue<String> requst_data;
+        private int action;
 
         public String getIp() {
             return ip;
@@ -402,7 +388,11 @@ public class Consumer {
             return videos;
         }
 
-        public DataPack(String ip, int port, boolean listener, String request, LinkedBlockingQueue<String> subscriptions, LinkedBlockingQueue<Integer> connections, LinkedBlockingQueue<String> videos, LinkedBlockingQueue<String> requst_data){
+        public int getAction(){
+            return action;
+        }
+
+        public DataPack(String ip, int port, boolean listener, String request, LinkedBlockingQueue<String> subscriptions, LinkedBlockingQueue<Integer> connections, LinkedBlockingQueue<String> videos, int action){
             this.ip = ip;
             this.port = port;
             this.listener = listener;
@@ -410,7 +400,8 @@ public class Consumer {
             this.subscriptions = subscriptions;
             this.connections = connections;
             this.videos = videos;
-            this.requst_data = requst_data;
+            this.action = action;
         }
     }
+
 }

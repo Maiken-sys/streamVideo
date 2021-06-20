@@ -1,5 +1,7 @@
 package com.distributedsystems.pubsubsystem;
 
+
+
 import android.os.Build;
 
 import androidx.annotation.RequiresApi;
@@ -20,7 +22,6 @@ import java.util.Date;
 
 public class VideoFile implements Serializable{
 
-    private ChannelName channel;
     private String videoName;
     private String channelName;
     private String dateCreated;
@@ -38,10 +39,15 @@ public class VideoFile implements Serializable{
 
     }
 
+    public VideoFile(String videoName, byte[] videoFileChunk){
+        this.videoName = videoName;
+        this.videoFileChunk = videoFileChunk;
+    }
+
     public VideoFile(ArrayList<Value> values, String videoName){
         int size = 0;
         this.videoName = videoName;
-        this.channel = values.get(0).getChannelName();
+        this.channelName = values.get(0).getChannelName().getName();
         for(Value value : values){
             size += value.getVideoFile().getVideoFileChunk().length;
         }
@@ -55,6 +61,7 @@ public class VideoFile implements Serializable{
             }
         }
     }
+
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     public VideoFile(String path) {
@@ -71,6 +78,9 @@ public class VideoFile implements Serializable{
         this.videoFileChunk = null;
     }
 
+    public String getChannelName(){
+        return channelName;
+    }
 
     public void addHashtag(String hashtag){
         if(hashtag.isEmpty()){
@@ -128,5 +138,8 @@ public class VideoFile implements Serializable{
     public String getLength(){
         return length;
     }
+
+
+
 
 }
